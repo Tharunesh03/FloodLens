@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }}{% endblock %}
+{% block extra_head %}
+<style>
+  .error-ill{font-size:5rem; margin-bottom:6px}
+  .error-actions{display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap}
+</style>
+{% endblock %}
+{% block content %}
+<section class="error-page">
+  <div class="container">
+    <div class="error-ill">🌊</div>
+    <h1>{{ code }}</h1>
+    <p style="font-size:1.1rem">{{ message }}</p>
+    <div class="error-actions">
+      <a class="btn btn-primary" href="{{ url_for('pages.home') }}">Back to home</a>
+      <a class="btn btn-secondary" href="{{ url_for('pages.predict_page') }}">Run a prediction</a>
+      <a class="btn btn-ghost" href="{{ url_for('pages.dashboard') }}">Open dashboard</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

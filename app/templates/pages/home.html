@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block extra_head %}
+<style>
+  .hero-card .risk-glance{display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:12px; margin:10px 0 4px}
+  .risk-glance .big{font-size:2rem; font-weight:800; color:var(--danger)}
+  .mini-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px}
+  .mini-stat{padding:10px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border)}
+  .mini-stat .k{font-size:.7rem; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); font-weight:700}
+  .mini-stat .v{font-size:1.05rem; font-weight:700; margin-top:2px}
+  .feature-row{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  @media (max-width:900px){.feature-row{grid-template-columns:1fr}}
+  .pill{display:inline-block; padding:4px 10px; border-radius:999px; font-size:.72rem; font-weight:700; letter-spacing:.4px; text-transform:uppercase}
+  .pill-teal{background:var(--primary-soft); color:var(--primary-strong)}
+  .stat-banner{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:28px}
+  @media (max-width:800px){.stat-banner{grid-template-columns:repeat(2,1fr)}}
+  .stat-banner .item{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; text-align:center}
+  .stat-banner .item .num{font-size:1.5rem; font-weight:800; background:linear-gradient(135deg,var(--c-teal-5),var(--c-sky-5)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .stat-banner .item .lbl{color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.3px}
+</style>
+{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow"><span class="pulse"></span> ML · Decision Support · Transparent</span>
+      <h1>See flood risk before it rises.</h1>
+      <p class="lead">
+        FloodLens combines rainfall, river discharge, water level, elevation,
+        soil and historical flood indicators to classify flood risk as
+        <strong>Low · Moderate · High · Critical</strong> — and shows you
+        exactly which factors are driving the estimate.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="{{ url_for('pages.predict_page') }}">
+          Run a prediction →
+        </a>
+        <a class="btn btn-secondary" href="{{ url_for('pages.dashboard') }}">
+          Open dashboard
+        </a>
+        <a class="btn btn-ghost" href="{{ url_for('pages.methodology') }}">
+          How it works
+        </a>
+      </div>
+
+      <div class="stat-banner">
+        <div class="item"><div class="num">4</div><div class="lbl">Risk Levels</div></div>
+        <div class="item"><div class="num">4+</div><div class="lbl">ML Models</div></div>
+        <div class="item"><div class="num">≥78%</div><div class="lbl">Macro F1</div></div>
+        <div class="item"><div class="num">100%</div><div class="lbl">Explainable</div></div>
+      </div>
+
+      <div class="disclaimer">
+        <strong>⚠ Not an official warning.</strong> FloodLens is an educational
+        ML decision-support tool. Always follow official emergency / government
+        guidance during severe weather.
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <span class="pill pill-teal">Live model · v1.0</span>
+      <h3 style="margin-top:8px">Risk in one glance</h3>
+      <p style="color:var(--muted); margin-top:2px; font-size:.9rem">The model classifies inputs into four ordinal tiers, each with matched precautions.</p>
+      <div class="gauge-row">
+        <div class="gauge-pill low">Low</div>
+        <div class="gauge-pill mod">Moderate</div>
+        <div class="gauge-pill high">High</div>
+        <div class="gauge-pill crit">Critical</div>
+      </div>
+      <div class="risk-glance">
+        <div class="big" style="color:var(--danger)">!</div>
+        <div>
+          <div style="font-weight:700">High-risk inputs</div>
+          <div style="color:var(--muted); font-size:.86rem">Heavy rain + high water level + low elevation + clay soil rapidly push estimates toward Critical.</div>
+        </div>
+      </div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="k">Coverage</div><div class="v">India</div></div>
+        <div class="mini-stat"><div class="k">API</div><div class="v">REST/JSON</div></div>
+        <div class="mini-stat"><div class="k">Stack</div><div class="v">Flask+sklearn</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="container">
+    <h2>Why FloodLens?</h2>
+    <p class="sec-lead">A real, end-to-end data-science project — from documented public data to a deployable web app with API.</p>
+    <div class="grid grid-3">
+      <div class="card hover">
+        <div class="icon">🌧️</div>
+        <h3>Meaningful drivers</h3>
+        <p>Combines rainfall, river discharge, water level, elevation, soil and land cover — not a single rainfall threshold.</p>
+      </div>
+      <div class="card hover">
+        <div class="icon">📊</div>
+        <h3>Compared & tuned models</h3>
+        <p>Benchmarks Logistic Regression, Decision Tree, Random Forest and Gradient Boosting with hyperparameter search.</p>
+      </div>
+      <div class="card hover">
+        <div class="icon">🧠</div>
+        <h3>Explainable estimates</h3>
+        <p>Every prediction shows the top contributing factors with magnitude labels — transparent, not a black box.</p>
+      </div>
+      <div class="card hover">
+        <div class="icon">🧪</div>
+        <h3>Tested pipeline</h3>
+        <p>Automated tests for data cleaning, feature engineering, model loading, validation, API and page rendering.</p>
+      </div>
+      <div class="card hover">
+        <div class="icon">🗂️</div>
+        <h3>Prediction history</h3>
+        <p>Local SQLite log of past predictions with probabilities and factors; easily cleared for demos.</p>
+      </div>
+      <div class="card hover">
+        <div class="icon">🚀</div>
+        <h3>Deployable for free</h3>
+        <p>Lightweight Flask + SQLite stack with Procfile/render.yaml — runs on free hosting tiers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="background:linear-gradient(180deg, transparent, var(--surface-2)); border-top:1px solid var(--border); border-bottom:1px solid var(--border)">
+  <div class="container grid grid-2" style="align-items:center">
+    <div>
+      <span class="pill pill-teal">Honest data policy</span>
+      <h2 style="margin-top:10px">Real data first, transparent fallback</h2>
+      <p class="sec-lead">
+        FloodLens builds on the CC0-licensed <em>Flood Risk in India</em> dataset from Kaggle.
+        If the real CSV is unavailable, a clearly-labelled synthetic dataset with
+        the same schema is generated so the pipeline still runs for demos —
+        no fabricated real-world claims.
+      </p>
+      <ul style="color:var(--muted); padding-left:20px; margin-top:-8px">
+        <li>Documented source URL, license and feature dictionary.</li>
+        <li>Schema validation, outlier clipping and imputation.</li>
+        <li>Reproducible training → serialized model artifacts.</li>
+      </ul>
+      <a class="btn btn-secondary" href="{{ url_for('pages.about') }}">About the data</a>
+    </div>
+    <div class="card">
+      <h3>Tech at a glance</h3>
+      <ul style="margin:6px 0 0 18px; color:var(--muted); padding:0">
+        <li>Backend: Python · Flask · Flask-WTF (CSRF)</li>
+        <li>ML: scikit-learn Pipelines (joblib-serialized)</li>
+        <li>Visuals: Plotly (interactive) · Matplotlib/Seaborn (EDA)</li>
+        <li>Frontend: Responsive HTML/CSS + vanilla JS · Jinja</li>
+        <li>Storage: SQLite (history only; no ORM)</li>
+        <li>Tests: pytest (16 tests)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="container">
+    <h2>Who is this for?</h2>
+    <p class="sec-lead">Designed as a portfolio-ready capstone and awareness tool.</p>
+    <div class="grid grid-4">
+      <div class="card"><div class="icon">🎓</div><h3>Students</h3><p>Final-year data-science project with report, viva prep and presentation.</p></div>
+      <div class="card"><div class="icon">🧑‍💻</div><h3>Developers</h3><p>A clean Flask + scikit-learn reference architecture to fork and extend.</p></div>
+      <div class="card"><div class="icon">🏘️</div><h3>Communities</h3><p>Awareness tool to understand how environmental factors combine into risk.</p></div>
+      <div class="card"><div class="icon">📰</div><h3>Demos</h3><p>Runs locally or on free hosting for workshops, classrooms and portfolios.</p></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

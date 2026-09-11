@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block extra_head %}
+<style>
+  .history-toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px}
+  .empty{padding:40px; text-align:center; color:var(--muted); border:1px dashed var(--border); border-radius:var(--radius)}
+  table.table th{position:sticky; top:0}
+</style>
+{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container">
+    <div class="flex-between">
+      <div>
+        <h1>Prediction History</h1>
+        <p class="sec-lead" style="margin-bottom:0">Recent predictions stored locally in SQLite for demonstration purposes.</p>
+      </div>
+      <form method="post" action="{{ url_for('pages.history_clear') }}" onsubmit="return confirm('Clear all prediction history? This cannot be undone.');">
+        <button type="submit" class="btn btn-danger btn-sm">Clear history</button>
+      </form>
+    </div>
+
+    {% if records %}
+    <div class="history-toolbar">
+      <span class="muted">{{ records|length }} record(s) shown (most recent first)</span>
+    </div>
+    <div class="card" style="padding:0; overflow:auto; max-height:640px">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th>Risk</th>
+            <th>Confidence</th>
+            <th>Rainfall (mm)</th>
+            <th>Water (m)</th>
+            <th>Discharge (m³/s)</th>
+            <th>Soil</th>
+            <th>Hist. Floods</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr>
+              <td style="white-space:nowrap; font-variant-numeric:tabular-nums">{{ r.created_at.replace('T',' ').replace('+00:00','') }}</td>
+              <td><span class="badge badge-{{ r.risk_level }}">{{ r.risk_level }}</span></td>
+              <td>{{ '%.0f'|format(r.confidence*100) }}%</td>
+              <td>{{ r.input_summary.get('Rainfall (mm)','–') }}</td>
+              <td>{{ r.input_summary.get('Water Level (m)','–') }}</td>
+              <td>{{ r.input_summary.get('River Discharge (m³/s)','–') }}</td>
+              <td>{{ r.input_summary.get('Soil Type','–') }}</td>
+              <td>{{ r.input_summary.get('Historical Floods','–') }}</td>
+              <td><span class="pill" style="background:var(--primary-soft); color:var(--primary-strong); padding:2px 8px; border-radius:6px; font-size:.72rem; font-weight:700">{{ r.source }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <div style="font-size:3rem">🗂️</div>
+      <p style="margin:8px 0 14px">No predictions recorded yet.</p>
+      <a class="btn btn-primary" href="{{ url_for('pages.predict_page') }}">Make your first prediction →</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

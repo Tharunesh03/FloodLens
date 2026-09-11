@@ -1,0 +1,19 @@
+# Render blueprint (optional). Render can also deploy directly from the Procfile.
+services:
+  - type: web
+    name: floodlens
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      python -c "from config import Config; Config.ensure_dirs()"
+      python scripts/train_pipeline.py --synthetic
+    startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: 0
+      - key: SECRET_KEY
+        generateValue: true
+    autoDeploy: true

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Methodology{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container prose">
+    <h1>Methodology</h1>
+    <p class="sec-lead">From raw data to risk prediction — an overview of FloodLens' ML pipeline.</p>
+
+    <div class="pipeline">
+      <div class="step">Data</div><span class="arrow">→</span>
+      <div class="step">Cleaning</div><span class="arrow">→</span>
+      <div class="step">Feature Engineering</div><span class="arrow">→</span>
+      <div class="step">Model</div><span class="arrow">→</span>
+      <div class="step">Risk Prediction</div><span class="arrow">→</span>
+      <div class="step">Explainability</div>
+    </div>
+
+    <h3>1. Data</h3>
+    <p>
+      The preferred dataset is the CC0-licensed <em>Flood Risk in India</em> dataset from
+      Kaggle, containing meteorological, hydrological and socio-economic features
+      across India with a binary <code>Flood_Occurred</code> label. When the real
+      dataset is unavailable, the pipeline generates a clearly-labelled synthetic
+      dataset with matching schema for demonstration.
+    </p>
+
+    <h3>2. Cleaning</h3>
+    <ul>
+      <li>Column-name normalization and type coercion.</li>
+      <li>Duplicate row removal.</li>
+      <li>Physically plausible clipping of numeric outliers (e.g., rainfall 0–2000 mm).</li>
+      <li>Median / mode imputation for missing values.</li>
+      <li>Canonicalization of categorical labels (e.g., <code>urban</code> → <code>Urban</code>).</li>
+    </ul>
+
+    <h3>3. Feature Engineering</h3>
+    <ul>
+      <li><code>Rainfall_72h_proxy</code>: sqrt-transformed rainfall as a proxy for antecedent wetness.</li>
+      <li><code>Rainfall_x_Level</code>: interaction between rainfall and water level.</li>
+      <li><code>Discharge_x_Humidity</code>: interaction between river flow and humidity.</li>
+      <li><code>Elevation_inv</code>: 1/(elevation+10) capturing flood-proneness of low-lying areas.</li>
+      <li>Ordinal 4-class risk target derived from a weighted risk score (see below).</li>
+    </ul>
+
+    <h3>4. Target Definition</h3>
+    <p>
+      The original dataset ships only with a binary flood label. We construct a
+      continuous Risk Score (0–1) as a weighted combination of percentiles of
+      rainfall, water level, river discharge, humidity, inverse elevation plus
+      penalties for soil drainage, land cover, historical floods, and a mitigation
+      term for infrastructure. The score is binned into four classes
+      (Low / Moderate / High / Critical), and every observed flood event is
+      promoted to at least <em>High</em>. See
+      <code>src/feature_engineering.py</code> for the exact formula.
+    </p>
+
+    <h3>5. Modelling</h3>
+    <p>
+      The preprocessing pipeline (median imputation + standard scaling for
+      numerics, one-hot encoding for categorics) is wrapped inside a scikit-learn
+      <code>Pipeline</code> together with the classifier to prevent data leakage.
+      We benchmark Logistic Regression, Decision Tree, Random Forest, Gradient
+      Boosting and optionally XGBoost, selecting the best by macro-F1 with recall
+      as a tie-breaker. The best model is lightly tuned with
+      <code>RandomizedSearchCV</code> (3-fold stratified CV) and serialized with
+      joblib.
+    </p>
+
+    <h3>6. Explainability</h3>
+    <p>
+      To stay lightweight for deployment we use a transparent contribution
+      method: numeric features are measured in z-scores from the training mean,
+      weighted by their direction of influence (e.g., high elevation reduces
+      risk); categorical features contribute by their average risk relative to
+      the global mean. Results are presented in plain English and labelled as
+      <em>influencing the model's prediction</em> — not as causal statements.
+    </p>
+
+    <h3>7. Serving</h3>
+    <p>
+      Flask loads the serialized pipeline once at startup and exposes both an
+      HTML interface and a JSON API (<code>/api/predict</code>,
+      <code>/api/health</code>, <code>/api/metadata</code>). Predictions are
+      logged to a local SQLite database for the history page.
+    </p>
+
+    <h3>Why these choices?</h3>
+    <ul>
+      <li><strong>Scikit-learn pipelines</strong> avoid leakage and make deployment simple.</li>
+      <li><strong>Macro-F1 / recall</strong> over raw accuracy because classes can be imbalanced and missing a high-risk event is worse than a false alarm.</li>
+      <li><strong>Tree ensembles</strong> (RF / GB / XGB) handle non-linear relationships and mixed feature types well.</li>
+      <li><strong>Lightweight explanation</strong> keeps deployment simple on free tiers, where SHAP's dependency weight can be problematic.</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

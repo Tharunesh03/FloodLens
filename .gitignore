@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Instance / DB (SQLite)
+instance/*.db
+instance/*.db-journal
+*.db
+*.sqlite
+*.sqlite3
+
+# Model artifacts (can be large; regenerate via scripts/train_pipeline.py)
+models/*.joblib
+models/*.pkl
+models/*.bin
+models/*.json
+!models/.gitkeep
+
+# Data (raw and processed can be large; regenerate via scripts)
+data/raw/*.csv
+data/raw/*.zip
+data/processed/*.csv
+data/synthetic/*.csv
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/synthetic/.gitkeep
+
+# EDA outputs (regenerable)
+app/static/exports/*.png
+app/static/exports/*.html
+app/static/exports/*.jpg
+!app/static/exports/.gitkeep
+
+# Logs & caches
+*.log
+logs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots optional
+screenshots/*
+!screenshots/.gitkeep
+
+# Coverage
+.coverage
+htmlcov/
+coverage/
