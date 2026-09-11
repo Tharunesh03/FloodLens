@@ -1,4 +1,4 @@
-"""Page routes for FloodLens: home, predict, dashboard, history, about, etc."""
+"""Page routes for FloodLens: home, predict, dashboard, history, about, dataset, etc."""
 from __future__ import annotations
 
 import logging
@@ -9,17 +9,16 @@ from flask import (
     flash, current_app, jsonify,
 )
 from flask_wtf import FlaskForm
-from wtforms import FloatField, SelectField, IntegerField, SubmitField
+from wtforms import FloatField, SelectField, SubmitField
 from wtforms.validators import InputRequired, NumberRange, Optional as OptionalVal
 
 from config import Config, RISK_LEVELS
 from src.predict import (
-    predict as run_prediction, validate_inputs, get_metadata,
-    VALID_LAND_COVER, VALID_SOIL_TYPE, BOUNDS,
+    predict as run_prediction, get_metadata,
 )
 from app.services.database import (
     record_prediction, recent_predictions, count_predictions,
-    risk_counts, clear_history, store_model_snapshot,
+    risk_counts, clear_history,
 )
 from src.visualize import generate_dashboard_charts
 
@@ -30,7 +29,6 @@ _chart_lock = Lock()
 
 
 def _ensure_charts():
-    """Generate and cache charts lazily."""
     with _chart_lock:
         if getattr(current_app, "charts_cache", None) is None:
             try:
@@ -41,64 +39,28 @@ def _ensure_charts():
     return current_app.charts_cache
 
 
+def _model_ready() -> bool:
+    try:
+        get_metadata()
+        return True
+    except Exception:
+        return False
+
+
 # ---- Forms ----
 
 class PredictForm(FlaskForm):
-    Rainfall_mm = FloatField(
-        "Rainfall (mm)",
-        validators=[InputRequired(), NumberRange(min=0, max=1000)],
-        default=80.0,
-    )
-    Temperature_C = FloatField(
-        "Temperature (°C)",
-        validators=[InputRequired(), NumberRange(min=-20, max=55)],
-        default=27.0,
-    )
-    Humidity_pct = FloatField(
-        "Humidity (%)",
-        validators=[InputRequired(), NumberRange(min=0, max=100)],
-        default=75.0,
-    )
-    River_Discharge_m3_s = FloatField(
-        "River Discharge (m³/s)",
-        validators=[InputRequired(), NumberRange(min=0, max=50000)],
-        default=1200.0,
-    )
-    Water_Level_m = FloatField(
-        "Water Level (m)",
-        validators=[InputRequired(), NumberRange(min=0, max=30)],
-        default=3.5,
-    )
-    Elevation_m = FloatField(
-        "Elevation (m)",
-        validators=[InputRequired(), NumberRange(min=-50, max=9000)],
-        default=250.0,
-    )
-    Population_Density = FloatField(
-        "Population Density (per km²)",
-        validators=[OptionalVal(), NumberRange(min=0, max=50000)],
-        default=800.0,
-    )
-    Land_Cover = SelectField(
-        "Land Cover",
-        choices=[(c, c) for c in ["Agricultural", "Urban", "Forest", "Water Body", "Desert"]],
-        default="Agricultural",
-    )
-    Soil_Type = SelectField(
-        "Soil Type",
-        choices=[(c, c) for c in ["Loam", "Clay", "Sandy", "Silt", "Peat"]],
-        default="Loam",
-    )
-    Infrastructure = SelectField(
-        "Flood-control Infrastructure",
-        choices=[(0, "No"), (1, "Yes")],
-        coerce=int, default=0,
-    )
-    Historical_Floods = SelectField(
-        "Historical Floods at Location",
-        choices=[(0, "No"), (1, "Yes")],
-        coerce=int, default=0,
-    )
+    Rainfall_mm = FloatField("Rainfall (mm)", validators=[InputRequired(), NumberRange(min=0, max=1000)], default=80.0)
+    Temperature_C = FloatField("Temperature (°C)", validators=[InputRequired(), NumberRange(min=-20, max=55)], default=27.0)
+    Humidity_pct = FloatField("Humidity (%)", validators=[InputRequired(), NumberRange(min=0, max=100)], default=75.0)
+    River_Discharge_m3_s = FloatField("River Discharge (m³/s)", validators=[InputRequired(), NumberRange(min=0, max=50000)], default=1200.0)
+    Water_Level_m = FloatField("Water Level (m)", validators=[InputRequired(), NumberRange(min=0, max=30)], default=3.5)
+    Elevation_m = FloatField("Elevation (m)", validators=[InputRequired(), NumberRange(min=-50, max=9000)], default=250.0)
+    Population_Density = FloatField("Population Density (per km²)", validators=[OptionalVal(), NumberRange(min=0, max=50000)], default=800.0)
+    Land_Cover = SelectField("Land Cover", choices=[(c, c) for c in ["Agricultural", "Urban", "Forest", "Water Body", "Desert"]], default="Agricultural")
+    Soil_Type = SelectField("Soil Type", choices=[(c, c) for c in ["Loam", "Clay", "Sandy", "Silt", "Peat"]], default="Loam")
+    Infrastructure = SelectField("Flood-control Infrastructure", choices=[(0, "No"), (1, "Yes")], coerce=int, default=0)
+    Historical_Floods = SelectField("Historical Floods at Location", choices=[(0, "No"), (1, "Yes")], coerce=int, default=0)
     submit = SubmitField("Estimate Flood Risk")
 
 
@@ -109,28 +71,18 @@ def home():
     return render_template("pages/home.html")
 
 
-def _model_ready() -> bool:
-    try:
-        get_metadata()
-        return True
-    except Exception:
-        return False
-
-
 @pages_bp.route("/predict", methods=["GET", "POST"])
 def predict_page():
     if not _model_ready():
         return render_template("pages/model_missing.html")
     form = PredictForm()
-    # Sensible defaults so first-time visitors see the form prefilled
     if request.method == "GET":
-        form.Rainfall_mm.data = form.Rainfall_mm.data if form.Rainfall_mm.data is not None else 80.0
-        form.Temperature_C.data = form.Temperature_C.data if form.Temperature_C.data is not None else 27.0
-        form.Humidity_pct.data = form.Humidity_pct.data if form.Humidity_pct.data is not None else 75.0
-        form.River_Discharge_m3_s.data = form.River_Discharge_m3_s.data if form.River_Discharge_m3_s.data is not None else 1200.0
-        form.Water_Level_m.data = form.Water_Level_m.data if form.Water_Level_m.data is not None else 3.5
-        form.Elevation_m.data = form.Elevation_m.data if form.Elevation_m.data is not None else 250.0
-        form.Population_Density.data = form.Population_Density.data if form.Population_Density.data is not None else 800.0
+        # Set sensible defaults for an empty form
+        for f in [form.Rainfall_mm, form.Temperature_C, form.Humidity_pct,
+                  form.River_Discharge_m3_s, form.Water_Level_m, form.Elevation_m,
+                  form.Population_Density]:
+            if f.data is None:
+                f.data = f.default
     result = None
     if form.validate_on_submit():
         data = {
@@ -161,7 +113,7 @@ def predict_page():
             for err in result.get("errors", []):
                 flash(err, "danger")
             result = None
-    return render_template("pages/predict.html", form=form, result=result, bounds=BOUNDS)
+    return render_template("pages/predict.html", form=form, result=result)
 
 
 @pages_bp.route("/dashboard")
@@ -215,11 +167,23 @@ def api_docs():
 
 @pages_bp.route("/health")
 def health_alias():
-    """Convenience alias so platforms that probe /health by default get a response."""
     from flask import jsonify
-    from src.predict import get_metadata
     try:
         version = get_metadata().get("model_version", "unknown")
     except Exception:
         version = "unknown"
     return jsonify({"status": "ok", "service": "FloodLens", "version": version})
+
+
+@pages_bp.route("/dataset")
+def dataset_page():
+    """Admin/dataset management page."""
+    from config import real_dataset_status
+    from app.routes.api import _retrain_state
+    ds = real_dataset_status()
+    meta = None
+    try:
+        meta = get_metadata()
+    except Exception:
+        meta = None
+    return render_template("pages/dataset.html", ds=ds, meta=meta, retrain=_retrain_state)

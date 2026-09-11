@@ -70,7 +70,8 @@
       const route = a.getAttribute('data-route');
       const match =
         (route === 'home' && path === '/') ||
-        (route !== 'home' && path.startsWith('/' + route));
+        (route !== 'home' && path.startsWith('/' + route)) ||
+        (route === 'dataset' && path.startsWith('/dataset'));
       if (match) a.classList.add('active');
     });
   }
