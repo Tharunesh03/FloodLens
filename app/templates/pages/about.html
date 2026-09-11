@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container prose">
+    <h1>About FloodLens</h1>
+    <p class="sec-lead">
+      FloodLens is a complete data-science project: from raw data and EDA, through
+      model training and tuning, to a deployable Flask web app with a JSON API.
+      It is built for educational demonstration and portfolio use.
+    </p>
+
+    <div class="toc">
+      <strong>On this page</strong>
+      <ol>
+        <li><a href="#project">The project</a></li>
+        <li><a href="#dataset">Dataset</a></li>
+        <li><a href="#tech">Technology</a></li>
+        <li><a href="#limits">Limitations</a></li>
+        <li><a href="#ethics">Ethical considerations</a></li>
+        <li><a href="#future">Future scope</a></li>
+      </ol>
+    </div>
+
+    <h3 id="project">The project</h3>
+    <p>
+      FloodLens classifies a location's flood risk into four levels —
+      Low, Moderate, High, Critical — using environmental and historical
+      factors. It is designed as a realistic decision-support demo for
+      disaster-management awareness, infrastructure planning, and community
+      education. It is <strong>not</strong> an operational early-warning
+      system.
+    </p>
+
+    <h3 id="dataset">Dataset</h3>
+    <p><strong>Preferred dataset:</strong> <em>Flood Risk in India</em> (Kaggle, CC0 Public Domain).</p>
+    <ul>
+      <li>Source: <a href="https://www.kaggle.com/datasets/s3programmer/flood-risk-in-india" target="_blank" rel="noopener">kaggle.com/datasets/s3programmer/flood-risk-in-india</a></li>
+      <li>License: CC0 (public domain, no usage restrictions).</li>
+      <li>Features: latitude, longitude, rainfall, temperature, humidity, river discharge, water level, elevation, land cover, soil type, population density, infrastructure, historical floods, flood occurrence.</li>
+      <li>Geographic coverage: India.</li>
+    </ul>
+    <p>
+      If the real CSV is not present in <code>data/raw/</code>, the training
+      pipeline automatically generates a clearly-labelled <strong>synthetic
+      dataset</strong> of the same schema, so the full stack (training → API →
+      UI) is demonstrable offline. The synthetic dataset MUST NOT be presented
+      as real-world evidence.
+    </p>
+    {% if meta %}
+    <p><strong>Currently loaded model:</strong> {{ meta.model_selection.selected_model }}
+       (v{{ meta.model_version }}, trained on {{ meta.trained_at }},
+       synthetic_data={{ meta.is_synthetic_data|lower }}).</p>
+    {% endif %}
+
+    <h3 id="tech">Technology</h3>
+    <ul>
+      <li><strong>Backend:</strong> Python, Flask</li>
+      <li><strong>ML:</strong> pandas, numpy, scikit-learn (XGBoost optional), joblib</li>
+      <li><strong>Visualization:</strong> Plotly (interactive), Matplotlib + Seaborn (EDA/PNG)</li>
+      <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS, Jinja templates</li>
+      <li><strong>Storage:</strong> SQLite (prediction history only, no ORM dependency)</li>
+      <li><strong>Tests:</strong> pytest</li>
+    </ul>
+
+    <h3 id="limits">Limitations</h3>
+    <ul>
+      <li>Models trained on Indian data should not be assumed to generalize globally.</li>
+      <li>The synthetic fallback data reflects engineered correlations, not real measurements.</li>
+      <li>The 4-class risk target is derived from a continuous risk score plus the binary flood label; it is a hazard indicator, not a severity ground truth.</li>
+      <li>No time-series / temporal modelling is performed; cumulative rainfall is approximated via a proxy feature.</li>
+      <li>No real-time weather or sensor integration.</li>
+      <li>Class imbalance may exist and is mitigated by class weighting and macro-F1, but recall for Critical events is not perfect.</li>
+      <li>Distribution shift (climate change, land-use change) will degrade performance over time.</li>
+      <li>False negatives are dangerous; any high-risk reading must be cross-checked with official warnings.</li>
+    </ul>
+
+    <h3 id="ethics">Ethical considerations</h3>
+    <p>
+      FloodLens is an educational decision-support system, NOT an official
+      emergency warning. Users should never ignore or delay action based on
+      government warnings because of this tool. The model is probabilistic:
+      it is calibrated to minimize overall classification error subject to
+      emphasizing recall for high-risk classes, but false negatives and false
+      positives will occur.
+    </p>
+
+    <h3 id="future">Future scope</h3>
+    <ul>
+      <li>Real-time ingestion from weather APIs (e.g., Open-Meteo, IMD, NOAA).</li>
+      <li>Spatiotemporal modelling with LSTM / Temporal Fusion Transformers.</li>
+      <li>GIS integration with open-source maps (Leaflet + OpenStreetMap).</li>
+      <li>IoT water-level sensor integration for local deployments.</li>
+      <li>Continuous monitoring and retraining pipelines.</li>
+      <li>Multi-region training datasets for broader geographic coverage.</li>
+      <li>Alerting via email / SMS / mobile apps.</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

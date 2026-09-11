@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_head %}
+<style>
+  .kpi .delta{font-size:.78rem; margin-top:2px; color:var(--muted)}
+  .kpi .delta.good{color:var(--c-green)}
+  .chart-card .header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px}
+  .pill{display:inline-block; padding:4px 10px; border-radius:999px; font-size:.72rem; font-weight:700; letter-spacing:.3px; text-transform:uppercase}
+  .pill-teal{background:var(--primary-soft); color:var(--primary-strong)}
+  .pill-red{background:#fef2f2; color:#b91c1c}
+  html[data-theme="dark"] .pill-red{background:#2a0e0e; color:#fca5a5}
+  .class-dist{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:4px}
+  .class-dist .cd{padding:10px; border-radius:10px; border:1px solid var(--border); text-align:center; background:var(--surface-2)}
+  .class-dist .cd .num{font-size:1.3rem; font-weight:800}
+  .class-dist .cd .lbl{font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.3px}
+  .mini-meta{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px}
+  .mini-meta div{background:var(--surface-2); border:1px solid var(--border); padding:10px; border-radius:10px; font-size:.84rem}
+  .mini-meta div b{display:block; font-size:.95rem; margin-top:2px}
+</style>
+{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container">
+    <div class="flex-between">
+      <div>
+        <h1>Model Dashboard</h1>
+        <p class="sec-lead" style="margin-bottom:0">Dataset, model, evaluation and prediction activity at a glance.</p>
+      </div>
+      {% if charts.available %}
+        <span class="pill pill-teal">{{ charts.summary.model_name }} · {{ charts.summary.model_version }}</span>
+      {% endif %}
+    </div>
+
+    {% if not charts.available %}
+      <div class="card">
+        <h3>Model not trained yet</h3>
+        <p>The training pipeline must run once before the dashboard becomes available.</p>
+        <pre class="api-out"><code>python scripts/train_pipeline.py            # auto-detect real/synthetic
+python scripts/train_pipeline.py --synthetic  # force synthetic for quick demo</code></pre>
+        <p class="muted">Refresh this page once training completes.</p>
+      </div>
+    {% else %}
+
+    {% if charts.summary.is_synthetic %}
+      <div class="disclaimer" style="border-left-color:var(--warn); margin:16px 0 24px">
+        <strong>Running on synthetic data.</strong> The real CC0 dataset was not found in
+        <code>data/raw/</code>, so the model was trained on a generated synthetic dataset.
+        Drop the real CSV into <code>data/raw/flood_risk_india.csv</code> and rerun
+        <code>python scripts/train_pipeline.py</code> for real-data metrics.
+      </div>
+    {% endif %}
+
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-label">Selected model</div>
+        <div class="kpi-value" style="font-size:1.2rem">{{ charts.summary.model_name }}</div>
+        <div class="delta good">Recall-priority selection</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">F1 (macro, test)</div>
+        <div class="kpi-value">{{ '%.2f'|format(charts.summary.test_metrics.f1_macro*100) }}%</div>
+        <div class="delta">Weighted: {{ '%.2f'|format(charts.summary.test_metrics.f1_weighted*100) }}%</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Recall (macro)</div>
+        <div class="kpi-value">{{ '%.2f'|format(charts.summary.test_metrics.recall_macro*100) }}%</div>
+        <div class="delta">Critical events prioritized</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Training samples</div>
+        <div class="kpi-value">{{ "{:,}".format(charts.summary.rows) }}</div>
+        <div class="delta">{{ charts.summary.features }} engineered features</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="header">
+        <div>
+          <h3>Class distribution in training data</h3>
+          <div class="sub">Number of samples per risk level. Balanced class weights are applied during training.</div>
+        </div>
+        <span class="pill pill-teal">{{ charts.summary.trained_at }}</span>
+      </div>
+      <div class="class-dist">
+          {% for lbl in ['Low','Moderate','High','Critical'] %}
+            {% set n = charts.summary.class_distribution.get(lbl, 0) %}
+            <div class="cd">
+              <div class="num" style="color:{{ RISK_COLORS[lbl] }}">{{ "{:,}".format(n|round|int) }}</div>
+              <div class="lbl">{{ lbl }}</div>
+            </div>
+          {% endfor %}
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <div class="header"><div><h3>Risk level distribution</h3><div class="sub">Bar view of class balance.</div></div></div>
+        <div id="chart-risk_dist" class="chart"></div>
+        <div class="chart-fallback" style="display:none"><img src="{{ url_for('static', filename='exports/risk_distribution.png') }}" alt="Risk distribution"></div>
+      </div>
+      <div class="chart-card">
+        <div class="header"><div><h3>Rainfall by risk level</h3><div class="sub">How rainfall varies across risk classes.</div></div></div>
+        <div id="chart-rainfall_box" class="chart"></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="header"><div><h3>Feature correlation</h3><div class="sub">Pearson correlations between key drivers and the continuous risk score.</div></div></div>
+      <div id="chart-corr_heatmap" class="chart"></div>
+      <div class="chart-fallback" style="display:none"><img src="{{ url_for('static', filename='exports/correlation_heatmap.png') }}" alt="Correlation heatmap"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="header"><div><h3>River discharge vs water level</h3><div class="sub">4,000-point sample colored by risk level.</div></div></div>
+      <div id="chart-scatter" class="chart"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <div class="header"><div><h3>Feature importance</h3><div class="sub">Top features ({{ charts.summary.model_name }}).</div></div></div>
+        {% if charts.feature_importance %}
+          <div id="chart-feature_importance" class="chart"></div>
+          <div class="chart-fallback" style="display:none"><img src="{{ url_for('static', filename='exports/feature_importance.png') }}" alt="Feature importance"></div>
+        {% else %}
+          <p class="muted">Feature importances not available for this model.</p>
+        {% endif %}
+      </div>
+      <div class="chart-card">
+        <div class="header"><div><h3>Confusion matrix (test set)</h3><div class="sub">How the tuned classifier performs on held-out data.</div></div></div>
+        <div id="chart-confusion_matrix" class="chart"></div>
+        <div class="chart-fallback" style="display:none"><img src="{{ url_for('static', filename='exports/confusion_matrix.png') }}" alt="Confusion matrix"></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="header"><div><h3>Model comparison</h3><div class="sub">Validation performance across candidate algorithms before tuning.</div></div></div>
+      <div id="chart-model_compare" class="chart"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="header"><div><h3>Per-class test metrics</h3><div class="sub">Precision, recall, F1 and support for each risk level.</div></div></div>
+      {% if meta %}
+      <div style="overflow:auto">
+      <table class="table">
+        <thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead>
+        <tbody>
+          {% for lbl in ['Low','Moderate','High','Critical'] %}
+            {% set r = meta.classification_report[lbl] %}
+            <tr>
+              <td><span class="badge badge-{{ lbl }}">{{ lbl }}</span></td>
+              <td>{{ '%.3f'|format(r.precision) }}</td>
+              <td>{{ '%.3f'|format(r.recall) }}</td>
+              <td>{{ '%.3f'|format(r['f1-score']) }}</td>
+              <td>{{ r.support }}</td>
+            </tr>
+          {% endfor %}
+          <tr style="font-weight:700; background:var(--surface-2)">
+            <td>Macro avg</td>
+            <td>{{ '%.3f'|format(meta.classification_report['macro avg'].precision) }}</td>
+            <td>{{ '%.3f'|format(meta.classification_report['macro avg'].recall) }}</td>
+            <td>{{ '%.3f'|format(meta.classification_report['macro avg']['f1-score']) }}</td>
+            <td>{{ meta.classification_report['macro avg'].support }}</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+      <div class="mini-meta">
+        <div>Accuracy<b>{{ '%.2f'|format(charts.summary.test_metrics.accuracy*100) }}%</b></div>
+        <div>Precision (macro)<b>{{ '%.2f'|format(charts.summary.test_metrics.precision_macro*100) }}%</b></div>
+        <div>Predictions logged<b>{{ history_stats.total_predictions }}</b></div>
+      </div>
+    </div>
+
+    {% if history_stats.risk_counts %}
+    <div class="card">
+      <h3>Prediction history (this instance)</h3>
+      <p class="muted">Counts of past predictions per risk level.</p>
+      <div class="gauge-row">
+        {% for k in ['Low','Moderate','High','Critical'] %}
+          <div class="gauge-pill {{ {'Low':'low','Moderate':'mod','High':'high','Critical':'crit'}[k] }}">{{ k }}: {{ history_stats.risk_counts.get(k, 0) }}</div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:10px"><a class="btn btn-ghost btn-sm" href="{{ url_for('pages.history') }}">View full history →</a></div>
+    </div>
+    {% endif %}
+
+    <script id="charts-data" type="application/json">
+      {
+        "risk_dist": {{ charts.risk_dist|tojson }},
+        "rainfall_box": {{ charts.rainfall_box|tojson }},
+        "corr_heatmap": {{ charts.corr_heatmap|tojson }},
+        "scatter": {{ charts.scatter|tojson }},
+        "feature_importance": {{ charts.feature_importance|tojson if charts.feature_importance else 'null'|safe }},
+        "confusion_matrix": {{ charts.confusion_matrix|tojson }},
+        "model_compare": {{ charts.model_compare|tojson }}
+      }
+    </script>
+    <script>window.__CHARTS__ = JSON.parse(document.getElementById('charts-data').textContent);</script>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

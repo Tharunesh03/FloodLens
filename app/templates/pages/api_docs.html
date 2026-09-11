@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}API{% endblock %}
+{% block extra_head %}
+<style>
+  .endpoint{display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:baseline; margin-top:8px}
+  .method{display:inline-block; padding:3px 10px; border-radius:6px; font-weight:800; font-size:.8rem; color:white; text-align:center; letter-spacing:.5px}
+  .method.get{background:var(--c-green)} .method.post{background:var(--c-sky-7)}
+</style>
+{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container prose" style="max-width:960px">
+    <h1>API Documentation</h1>
+    <p class="sec-lead">Simple JSON endpoints for integration, demos or automated testing.</p>
+
+    <div class="card" style="margin-bottom:18px">
+      <h3>Health check</h3>
+      <div class="endpoint"><span class="method get">GET</span><code>/api/health</code></div>
+      <p style="margin:8px 0">Liveness probe — returns service name, status and model version.</p>
+      <button class="btn btn-secondary btn-sm" id="btnHealth">Try it</button>
+      <pre id="healthOut" class="api-out">Click "Try it" to see the response.</pre>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <h3>Predict</h3>
+      <div class="endpoint"><span class="method post">POST</span><code>/api/predict</code></div>
+      <p style="margin:8px 0">Accepts JSON of environmental features and returns the classified risk level, per-class probabilities, confidence, top contributing factors and recommended precautions.</p>
+      <p><strong>Request body:</strong></p>
+      <pre class="api-out"><code>{
+  "Rainfall_mm": 120.0,               // required, mm
+  "Temperature_C": 28.0,             // required, °C
+  "Humidity_pct": 88.0,              // required, 0-100
+  "River_Discharge_m3_s": 3500.0,    // required, m³/s
+  "Water_Level_m": 6.5,              // required, m
+  "Elevation_m": 80.0,               // required, m
+  "Population_Density": 800.0,       // optional, default 500
+  "Land_Cover": "Agricultural",      // Urban | Forest | Agricultural | Water Body | Desert
+  "Soil_Type": "Clay",               // Sandy | Clay | Loam | Silt | Peat
+  "Infrastructure": 0,               // 0 or 1
+  "Historical_Floods": 1             // 0 or 1
+}</code></pre>
+      <p><strong>Example response:</strong></p>
+      <pre class="api-out"><code>{
+  "ok": true,
+  "risk_level": "Critical",
+  "risk_index": 3,
+  "confidence": 0.94,
+  "probabilities": {"Low":0.00, "Moderate":0.01, "High":0.18, "Critical":0.81},
+  "important_factors": [ ... ],
+  "model_version": "1.0.0"
+}</code></pre>
+      <button class="btn btn-secondary btn-sm" id="btnPredict">Try with sample payload</button>
+      <pre id="predictOut" class="api-out">Click "Try it" to see the response.</pre>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <h3>Metadata</h3>
+      <div class="endpoint"><span class="method get">GET</span><code>/api/metadata</code></div>
+      <p style="margin:8px 0">Returns model version, name, test metrics, class distribution and feature list. Open it directly:</p>
+      <a class="btn btn-ghost btn-sm" href="/api/metadata" target="_blank" rel="noopener">Open /api/metadata →</a>
+    </div>
+
+    <div class="card">
+      <h3>Errors</h3>
+      <ul style="margin:8px 0 0 18px; color:var(--muted)">
+        <li>Invalid JSON / non-JSON body → <code>400 Bad Request</code> with <code>{"ok": false, "error": "..."}</code>.</li>
+        <li>Missing or out-of-range fields → <code>400</code> with a list of <code>errors</code>.</li>
+        <li>Model not trained yet → <code>503 Service Unavailable</code> from <code>/api/metadata</code>.</li>
+        <li>Successful predictions return <code>200 OK</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

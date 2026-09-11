@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Model not trained{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container">
+    <div class="card" style="max-width:720px; margin:40px auto">
+      <h1>First-time setup: model not found</h1>
+      <p>The FloodLens web app is running, but no trained model artifacts exist yet in <code>models/</code>.</p>
+      <p>Run the training pipeline once to generate the model, preprocessors and dashboard charts:</p>
+      <pre style="background:var(--surface-2); padding:12px; border-radius:10px"><code># Use real data if data/raw/flood_risk_india.csv is present,
+# otherwise auto-generate a synthetic dataset:
+python scripts/train_pipeline.py
+
+# Force synthetic (quick, no external data needed):
+python scripts/train_pipeline.py --synthetic</code></pre>
+      <p>Once training finishes, refresh this page.</p>
+      <a class="btn btn-primary" href="{{ url_for('pages.predict_page') }}">Refresh</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

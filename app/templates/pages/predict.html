@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Predict{% endblock %}
+{% block extra_head %}
+<style>
+  .predict-layout{display:grid; grid-template-columns:1.2fr 1fr; gap:24px; align-items:start}
+  @media (max-width:1024px){.predict-layout{grid-template-columns:1fr}}
+  .input-summary{display:grid; grid-template-columns:repeat(2,1fr); gap:6px 16px; margin-top:10px; font-size:.9rem}
+  .input-summary .k{color:var(--muted)}
+  .risk-meter{display:flex; gap:6px; margin-top:8px}
+  .risk-meter div{flex:1; text-align:center; padding:6px 2px; font-size:.7rem; font-weight:700; border-radius:6px; color:white; opacity:.4}
+  .risk-meter div.active{opacity:1; box-shadow:0 0 0 2px white inset, 0 4px 10px rgba(0,0,0,.15)}
+  @media (max-width:600px){.risk-meter{font-size:.65rem}}
+  .form-group input[type=number], .form-group select{min-height:42px}
+  .form-group select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%); background-position:calc(100% - 18px) center, calc(100% - 13px) center; background-size:5px 5px,5px 5px; background-repeat:no-repeat; padding-right:36px}
+</style>
+{% endblock %}
+{% block content %}
+<section class="sec">
+  <div class="container">
+    <div class="flex-between" style="margin-bottom:8px">
+      <div>
+        <h1>Estimate Flood Risk</h1>
+        <p class="sec-lead" style="margin-bottom:0">
+          Enter local environmental readings to get an ML-based risk estimate.
+          Coverage: <strong>{{ GEO_COVERAGE }}</strong>.
+        </p>
+      </div>
+      <span class="pill" style="background:var(--primary-soft); color:var(--primary-strong); padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:700">v1.0 · Explainable</span>
+    </div>
+
+    <div class="predict-layout">
+      <div class="form-card">
+        <form method="post" novalidate id="predictForm" autocomplete="off">
+          {{ form.hidden_tag() }}
+          <div class="form-grid">
+            {% for f in [form.Rainfall_mm, form.Temperature_C, form.Humidity_pct, form.River_Discharge_m3_s, form.Water_Level_m, form.Elevation_m, form.Population_Density] %}
+              <div class="form-group">
+                {{ f.label }}
+                {% set step = '0.01' %}
+                {% set val = f.data if f.data is not none else f.default %}
+                <input type="number" step="{{ step }}" name="{{ f.name }}" id="{{ f.name }}" class="form-control" value="{{ val if val is not none else '' }}" placeholder="{{ f.label.text }}">
+                {% if f.errors %}
+                  <small class="field-error">{{ f.errors[0] }}</small>
+                {% endif %}
+              </div>
+            {% endfor %}
+
+            {% macro select_field(f, hint) %}
+              <div class="form-group">
+                {{ f.label }}
+                {{ f(class_="form-control") }}
+                {% if hint %}<small class="hint">{{ hint }}</small>{% endif %}
+                {% if f.errors %}<small class="field-error">{{ f.errors[0] }}</small>{% endif %}
+              </div>
+            {% endmacro %}
+
+            {{ select_field(form.Land_Cover, "Predominant land cover at the location.") }}
+            {{ select_field(form.Soil_Type, "Soil type affects drainage (Clay/Silt/Peat retain water).") }}
+            {{ select_field(form.Infrastructure, "Presence of flood-control infrastructure (levees, drains).") }}
+            {{ select_field(form.Historical_Floods, "Has this location flooded historically?") }}
+
+            {# hints for numeric fields (rendered below inputs) #}
+            <script>
+              (function(){
+                var hints = {
+                  "Rainfall_mm":            "0 – 1000 mm · primary driver",
+                  "Temperature_C":          "-20 – 55 °C",
+                  "Humidity_pct":           "0 – 100 %",
+                  "River_Discharge_m3_s":   "m³/s · river flow volume",
+                  "Water_Level_m":          "0 – 30 m · river height",
+                  "Elevation_m":            "metres above sea level",
+                  "Population_Density":     "persons/km² (optional)"
+                };
+                Object.keys(hints).forEach(function(id){
+                  var el = document.getElementById(id);
+                  if(!el) return;
+                  var small = document.createElement('small');
+                  small.className = 'hint';
+                  small.textContent = hints[id];
+                  el.parentNode.insertBefore(small, el.nextSibling);
+                });
+              })();
+            </script>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="btnSubmit">
+              Estimate Risk
+            </button>
+            <a class="btn btn-ghost" href="{{ url_for('pages.predict_page') }}">Reset form</a>
+            <small class="muted" style="margin-left:auto">Model loads once; predictions return in milliseconds.</small>
+          </div>
+        </form>
+      </div>
+
+      <div>
+        {% if result and result.ok %}
+          <div class="card result-card" id="resultCard" style="--res-accent: linear-gradient(90deg,{{ RISK_COLORS[result.risk_level] }}, color-mix(in srgb,{{ RISK_COLORS[result.risk_level] }} 60%, black));">
+            <div class="result-head">
+              <div class="inline">
+                <span class="badge-risk" style="background:{{ RISK_COLORS[result.risk_level] }}">
+                  <span class="dot"></span> {{ result.risk_level }}
+                </span>
+              </div>
+              <span class="confidence">Confidence: <strong>{{ '%.0f' % (result.confidence*100) }}%</strong> · v{{ result.model_version }}{% if result.is_synthetic_data %} · <em style="color:var(--warn)">synthetic-data model</em>{% endif %}</span>
+            </div>
+            <div class="risk-meter">
+              {% for lvl in ['Low','Moderate','High','Critical'] %}
+                <div class="{% if lvl == result.risk_level %}active{% endif %}" style="background:{{ RISK_COLORS[lvl] }}">{{ lvl }}</div>
+              {% endfor %}
+            </div>
+            <p style="margin-top:14px">{{ result.interpretation }}</p>
+
+            <div class="prob-bar-wrap">
+              {% for lvl, p in result.probabilities.items() %}
+              <div class="prob-row">
+                <div class="label">{{ lvl }}</div>
+                <div class="prob-bar">
+                  <div class="prob-fill" style="width:{{ '%.1f' % (p*100) }}%; background:{{ RISK_COLORS[lvl] }}"></div>
+                </div>
+                <div class="prob-pct">{{ '%.1f' % (p*100) }}%</div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <h3 style="margin-top:18px; font-size:1rem">Top contributing factors</h3>
+            <p class="muted" style="font-size:.84rem; margin-top:-4px">
+              Features that most influenced this prediction — not proof of causation.
+            </p>
+            <div class="factors">
+              {% for f in result.important_factors %}
+                <div class="factor {{ f.contribution }}">
+                  <div class="ic">
+                    {% if f.contribution == 'up' %}↑{% else %}↓{% endif %}
+                  </div>
+                  <div>
+                    <div class="mag">{{ f.magnitude }}</div>
+                    <div>{{ f.text }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="precautions">
+              <strong>Recommended precautions</strong>
+              <ul>
+                {% for p in result.precautions %}<li>{{ p }}</li>{% endfor %}
+              </ul>
+            </div>
+
+            <details style="margin-top:14px">
+              <summary style="cursor:pointer; font-weight:600">Input summary</summary>
+              <div class="input-summary">
+                {% for k,v in result.input_summary.items() %}
+                  <div><span class="k">{{ k }}:</span> {{ v }}</div>
+                {% endfor %}
+              </div>
+            </details>
+          </div>
+        {% else %}
+          <div class="card" style="border-style:dashed">
+            <h3>Ready when you are</h3>
+            <p>Fill in the form to get a classified risk level, probability bars, the features driving the estimate, and recommended precautions.</p>
+            <ul class="muted" style="padding-left:18px; font-size:.9rem">
+              <li>Try <strong>high-risk</strong>: Rain ≈120 mm, Water level ≈6.5 m, Discharge ≈3500 m³/s, Elevation ≈80 m, Clay soil, Historical floods = Yes.</li>
+              <li>Try <strong>low-risk</strong>: Rain ≈20 mm, Water level ≈1.5 m, Discharge ≈300 m³/s, Elevation ≈800 m, Loam soil.</li>
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
